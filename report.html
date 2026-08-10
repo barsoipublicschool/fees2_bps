@@ -1,0 +1,100 @@
+<style>
+    .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+    .report-table th, .report-table td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    .report-table th { background: var(--p); color: white; }
+    .btn-remind { background: #25D366; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .qr-thumb { width: 45px; height: 45px; cursor: pointer; border: 1px solid #777; border-radius: 4px; }
+</style>
+
+<div style="background:white; padding:15px; border-radius:8px;">
+    <h3 style="color:var(--p); margin-top:0;">Fee Report & WhatsApp Reminders</h3>
+    
+    <div style="display:flex; gap:10px; align-items:center;">
+        <label style="width: auto;">Select Month:</label>
+        <select id="report-month" style="width: 150px;">
+            <option>January</option><option>February</option><option>March</option><option>April</option><option>May</option><option>June</option><option>July</option><option>August</option><option>September</option><option>October</option><option>November</option><option>December</option>
+        </select>
+        <button onclick="loadReport()" style="background:var(--p); color:white; border:none; padding:8px 15px; border-radius:4px; cursor:pointer;">LOAD REPORT</button>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Receipt No</th>
+                    <th>Class</th>
+                    <th>ID / Roll</th>
+                    <th>Student Name</th>
+                    <th>Father Name</th>
+                    <th>Paid Amount</th>
+                    <th>Remaining Due</th>
+                    <th>Payment QR</th>
+                    <th>WhatsApp Action</th>
+                </tr>
+            </thead>
+            <tbody id="report-body">
+                <tr><td colspan="9">Select a month and click "LOAD REPORT"</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SCHOOL_UPI = "YOUR_UPI_ID@okaxis"; // APNA UPI ID YAHAN BADLEIN
+
+    async function loadReport() {
+        let month = document.getElementById('report-month').value;
+        Swal.fire({title:'Loading Report...', didOpen:()=>Swal.showLoading()});
+        
+        try {
+            const res = await fetch(`${SCRIPT_URL}?action=getReportData&month=${month}`);
+            let data = await res.json();
+            Swal.close();
+
+            let tbody = document.getElementById('report-body');
+            if(!data.rows || data.rows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9">No records found for ${month}</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            data.rows.forEach(r => {
+                let due = parseFloat(r["Remaining"]) || 0;
+                let studentName = r["Student Name"] || "";
+                let fatherName = r["Father Name"] || "";
+                let sClass = r["Class"] || "";
+                let sId = r["Student Id"] || "";
+                let mob = r["Mobile No"] || r["Address"] || ""; // Auto-fallback
+
+                let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=` + encodeURIComponent(`upi://pay?pa=${SCHOOL_UPI}&pn=SAGAR%20PUBLIC%20SCHOOL&am=${due}&cu=INR`);
+
+                let msg = `*SAGAR PUBLIC SCHOOL - FEE REMINDER*\n` +
+                          `Dear Parent (${fatherName}),\n` +
+                          `Student: *${studentName}* (Class: ${sClass}, Roll: ${sId})\n` +
+                          `Month: *${month}*\n` +
+                          `Pending Due Balance: *₹${due}*\n\n` +
+                          `Kripya Niche Diye Gaye UPI Link Par Click Karke Payment Karein:\n` +
+                          `upi://pay?pa=${SCHOOL_UPI}&pn=SAGAR%20PUBLIC%20SCHOOL&am=${due}&cu=INR\n\n` +
+                          `Dhanyawad!\n_Sagar Public School_`;
+
+                let waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+                html += `<tr>
+                    <td>${r["Receipt No"] || "N/A"}</td>
+                    <td>${sClass}</td>
+                    <td>${sId}</td>
+                    <td><b>${studentName}</b></td>
+                    <td>${fatherName}</td>
+                    <td style="color:green; font-weight:bold;">₹${r["Total Paid"] || 0}</td>
+                    <td style="color:red; font-weight:bold;">₹${due}</td>
+                    <td>${due > 0 ? `<img src="${qrUrl}" class="qr-thumb" onclick="window.open('${qrUrl}')" title="Click to Expand QR">` : 'N/A'}</td>
+                    <td>
+                        ${due > 0 ? `<a href="${waUrl}" target="_blank"><button class="btn-remind">SEND REMINDER 📲</button></a>` : '<span style="color:green; font-weight:bold;">CLEAR</span>'}
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+
+        } catch(e) { Swal.fire("Error", "Report Fetching Failed", "error"); }
+    }
+</script>
