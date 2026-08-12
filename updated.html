@@ -176,9 +176,15 @@
 
 <!-- REMINDERS VIEW -->
 <div id="report-view" class="container no-print" style="max-width:95%;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
         <h3 style="margin:0; color:var(--p);">Pending Fee Reminders</h3>
-        <button onclick="fetchReminders()" style="background:var(--p); color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">🔄 Refresh List</button>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <select id="classFilterSelect" onchange="renderFilteredReminders()" style="padding:6px 10px; width:auto; font-weight:bold;">
+                <option value="ALL">ALL CLASSES</option>
+            </select>
+            <span id="totalStudentCount" style="font-weight:bold; color:var(--p); font-size:13px;">Total Students: 0</span>
+            <button onclick="fetchReminders()" style="background:var(--p); color:white; border:none; padding:6px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">🔄 Refresh List</button>
+        </div>
     </div>
     <div style="overflow-x:auto;">
         <table class="reminder-table">
@@ -215,9 +221,10 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwofCz8USy0egcbg6oEuPnRNimLdDlJ9Qe9_jKvI2IxtszeybwAOQOFHZ3aoOaKZJfj/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyzc30xfSDlzKNHOMHLwvnXr_6QsMrqVQBTp3qY5ARGxldDpFJFJB3ROt5D3BLEvl6MuA/exec";
     let allRecords = [];
     let currentActiveReceipt = null;
+    let reminderRawData = [];
 
     window.onload = async () => {
         try {
@@ -247,27 +254,62 @@
         
         try {
             const res = await fetch(`${SCRIPT_URL}?action=getReminderData`);
-            const rows = await res.json();
+            reminderRawData = await res.json();
 
-            if (!rows || rows.length <= 1) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">No reminder data found.</td></tr>';
+            // अगर डेटा खाली है या सिर्फ Header है
+            if (!reminderRawData || !Array.isArray(reminderRawData) || reminderRawData.length <= 1) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">No reminder data found in sheet.</td></tr>';
+                document.getElementById('totalStudentCount').innerText = "Total Students: 0";
                 return;
             }
 
-            let html = "";
-            // Index 0 is Header Row, iterating from index 1
-            for (let i = 1; i < rows.length; i++) {
-                let r = rows[i];
-                let sClass = r[0] || "";
-                let rollNo = r[1] || "";
-                let name = r[2] || "";
-                let father = r[3] || "";
-                let phone = r[6] || "";
-                let monthlyFee = r[5] || 0;
-                let prevDue = r[7] || 0;
-                let totalDue = r[8] || 0;
+            // Class Filter Dropdown को Dynamically भरना
+            let classSet = new Set();
+            for (let i = 1; i < reminderRawData.length; i++) {
+                let cls = reminderRawData[i][0];
+                if (cls) classSet.add(cls.toString().trim());
+            }
 
-                let waMsg = `आदरणीय अभिभावक,\nआपके बच्चे ${name} (Class: ${sClass}) की कुल बकाया फीस ₹${totalDue} है।\n\nकृपया नीचे दिए गए UPI ID पर भुगतान करें:\nUPI ID: riyazahmad5@okaxis\nName: SAGAR PUBLIC SCHOOL\n\nधन्यवाद!`;
+            let select = document.getElementById('classFilterSelect');
+            select.innerHTML = '<option value="ALL">ALL CLASSES</option>';
+            classSet.forEach(c => {
+                select.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+
+            renderFilteredReminders();
+
+        } catch (e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">Error loading reminders. Check Code.gs action and Deployments.</td></tr>';
+        }
+    }
+
+    function renderFilteredReminders() {
+        const selectedClass = document.getElementById('classFilterSelect').value;
+        const tbody = document.getElementById('reminder-table-body');
+        
+        if (!reminderRawData || reminderRawData.length <= 1) return;
+
+        let html = "";
+        let count = 0;
+
+        for (let i = 1; i < reminderRawData.length; i++) {
+            let r = reminderRawData[i];
+            
+            // Array Index Mapping:
+            // 0: Class, 1: Roll, 2: Name, 3: Father, 4: Address, 5: MonthlyFee, 6: Mobile, 7: PrevDue, 8: TotalDue
+            let sClass = (r[0] || "").toString().trim();
+            let rollNo = r[1] || "";
+            let name = r[2] || "";
+            let father = r[3] || "";
+            let monthlyFee = parseFloat(r[5]) || 0;
+            let phone = r[6] || "";
+            let prevDue = parseFloat(r[7]) || 0;
+            let totalDue = parseFloat(r[8]) || 0;
+
+            if (selectedClass === "ALL" || sClass.toLowerCase() === selectedClass.toLowerCase()) {
+                count++;
+                let waMsg = `आदरणीय अभिभावक,\nआपके बच्चे ${name} (Class: ${sClass}) की कुल बकाया फीस ₹${totalDue} है।\n(मासिक फीस: ₹${monthlyFee} + पिछला बकाया: ₹${prevDue})\n\nकृपया नीचे दिए गए UPI ID पर भुगतान करें:\nUPI ID: riyazahmad5@okaxis\nName: SAGAR PUBLIC SCHOOL\n\nधन्यवाद!`;
                 let waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`;
 
                 html += `<tr>
@@ -285,11 +327,10 @@
                     </td>
                 </tr>`;
             }
-            tbody.innerHTML = html;
-        } catch (e) {
-            console.error(e);
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">Error loading reminders. Check Code.gs action.</td></tr>';
         }
+
+        document.getElementById('totalStudentCount').innerText = `Total Students: ${count}`;
+        tbody.innerHTML = html || '<tr><td colspan="8" style="text-align:center;">No students found for this class.</td></tr>';
     }
 
     async function autoFetchByClassRoll() {
