@@ -221,7 +221,7 @@
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwCPTRpGxeNtqpvu934FGHs6ljEH_t0EOzhXijl2Qf6xTdSNTs8Dlucg6aP87EUitxG/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeBytEuHQQjspTk_ZKUiqF5wPupUNDoDgDCxnlM5AmImzu9xPSam-p0v_TTYq1jHit/exec";
     let allRecords = [];
     let currentActiveReceipt = null;
     let reminderRawData = [];
@@ -256,14 +256,13 @@
             const res = await fetch(`${SCRIPT_URL}?action=getReminderData`);
             reminderRawData = await res.json();
 
-            // अगर डेटा खाली है या सिर्फ Header है
             if (!reminderRawData || !Array.isArray(reminderRawData) || reminderRawData.length <= 1) {
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:red;">No reminder data found in sheet.</td></tr>';
                 document.getElementById('totalStudentCount').innerText = "Total Students: 0";
                 return;
             }
 
-            // Class Filter Dropdown को Dynamically भरना
+            // Populate Class Filter Dropdown Dynamically
             let classSet = new Set();
             for (let i = 1; i < reminderRawData.length; i++) {
                 let cls = reminderRawData[i][0];
@@ -296,21 +295,26 @@
         for (let i = 1; i < reminderRawData.length; i++) {
             let r = reminderRawData[i];
             
-            // Array Index Mapping:
+            // Correct Index Mapping from Backend:
             // 0: Class, 1: Roll, 2: Name, 3: Father, 4: Address, 5: MonthlyFee, 6: Mobile, 7: PrevDue, 8: TotalDue
             let sClass = (r[0] || "").toString().trim();
             let rollNo = r[1] || "";
             let name = r[2] || "";
             let father = r[3] || "";
             let monthlyFee = parseFloat(r[5]) || 0;
-            let phone = r[6] || "";
+            let phone = (r[6] || "").toString().trim();
             let prevDue = parseFloat(r[7]) || 0;
             let totalDue = parseFloat(r[8]) || 0;
 
             if (selectedClass === "ALL" || sClass.toLowerCase() === selectedClass.toLowerCase()) {
                 count++;
-                let waMsg = `आदरणीय अभिभावक,\nआपके बच्चे ${name} (Class: ${sClass}) की कुल बकाया फीस ₹${totalDue} है।\n(मासिक फीस: ₹${monthlyFee} + पिछला बकाया: ₹${prevDue})\n\nकृपया नीचे दिए गए UPI ID पर भुगतान करें:\nUPI ID: riyazahmad5@okaxis\nName: SAGAR PUBLIC SCHOOL\n\nधन्यवाद!`;
-                let waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`;
+                
+                // Ensure Phone formatting (e.g. 91 prefix if 10 digits)
+                let cleanPhone = phone.replace(/[^0-9]/g, '');
+                if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+                let waMsg = `आदरणीय अभिभावक,\nआपके बच्चे ${name} (Class: ${sClass}) की कुल बकाया फीस ₹${totalDue} है।\n(मासिक फीस: ₹${monthlyFee} + पिछला बकाया: ₹${prevDue})\n\nकृपया नीचे दिए गए UPI ID पर भुगतान करें:\nUPI ID: riyazahmad5@okaxis\nName: BARSOI PUBLIC SCHOOL\n\nधन्यवाद!`;
+                let waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}`;
 
                 html += `<tr>
                     <td><b>${sClass}</b></td>
@@ -498,7 +502,7 @@
         if(!currentActiveReceipt) return;
         let d = currentActiveReceipt;
         
-        let msg = `*SAGAR PUBLIC SCHOOL - FEE RECEIPT*\n` +
+        let msg = `*BARSOI PUBLIC SCHOOL - FEE RECEIPT*\n` +
                   `📍 Quazitola, Barsoi (Katihar)\n` +
                   `-----------------------------------\n` +
                   `📄 *Receipt No:* ${d["Receipt No"] || "N/A"}\n` +
@@ -514,7 +518,7 @@
                   `🔻 *Due Balance:* ₹${d["Remaining"]}\n` +
                   `-----------------------------------\n` +
                   `Thank you for the payment!\n` +
-                  `_Sagar Public School Management_`;
+                  `_Barsoi Public School Management_`;
 
         let url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
         window.open(url, '_blank');
@@ -550,7 +554,7 @@
                         <span style="font-size:7.5px; width:75px; text-align:right;">Mob: 9279583673</span>
                     </div>
                     <img src="${logo}" class="school-logo">
-                    <h2>SAGAR PUBLIC SCHOOL</h2>
+                    <h2>BARSOI PUBLIC SCHOOL</h2>
                     <p>QUAZITOLA, BARSOI (KATIHAR)</p>
                     <p style="font-size:7px">RTE Reg No.21211472023218114225 | UDISE No.10101122703</p>
                     <p style="font-size:7px">email - sagarpublicschool2023@gmail.com</p>
