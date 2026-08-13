@@ -295,16 +295,27 @@
         for (let i = 1; i < reminderRawData.length; i++) {
             let r = reminderRawData[i];
             
-            // Correct Index Mapping from Backend:
-            // 0: Class, 1: Roll, 2: Name, 3: Father, 4: Address, 5: MonthlyFee, 6: Mobile, 7: PrevDue, 8: TotalDue
+            // EXACT INDEX MAPPING ACCORDING TO YOUR GOOGLE SHEET:
+            // 0: Class (A)
+            // 1: Roll No (B)
+            // 2: Name (C)
+            // 3: Father Name (D)
+            // 4: Address (E)
+            // 5: Empty (F - Previous Due if present, otherwise 0)
+            // 6: Monthly Fee (G)
+            // 7: Whatsapp No (H)
+            
             let sClass = (r[0] || "").toString().trim();
             let rollNo = r[1] || "";
             let name = r[2] || "";
             let father = r[3] || "";
-            let monthlyFee = parseFloat(r[5]) || 0;
-            let phone = (r[6] || "").toString().trim();
-            let prevDue = parseFloat(r[7]) || 0;
-            let totalDue = parseFloat(r[8]) || 0;
+            let address = r[4] || "";
+            let prevDue = parseFloat(r[5]) || 0; 
+            let monthlyFee = parseFloat(r[6]) || 0;
+            let phone = (r[7] || "").toString().trim();
+            
+            // Total Due calculation (Monthly Fee + Previous Due)
+            let totalDue = monthlyFee + prevDue;
 
             if (selectedClass === "ALL" || sClass.toLowerCase() === selectedClass.toLowerCase()) {
                 count++;
